@@ -173,7 +173,7 @@ b = poly2mask(x,y,size(BW2,1), size(BW2,2));
 BW2 = BW2-b;
 for i=1:size(objects)
     try
-        bin0 = createMask(objects(i));
+        bin0 = createMask(objects(i),BW2);
         BW2=BW2-bin0;
     catch
     end
