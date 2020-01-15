@@ -49,9 +49,21 @@ function clear_vars
 global objects scale_box scale_line scale position filename bw img_file
 clear objects scale_box scale_line scale position filename bw img_file;
 
+function set_image(val)
+global image
+image = val;
+
 function r = get_image
 global image
 r = image;
+
+function set_img_file(val)
+global img_file
+img_file = val;
+
+function get_img_file
+global img_file
+r = img_file;
 
 function set_filename(val)
 global filename
@@ -60,10 +72,6 @@ filename = val;
 function r = get_filename 
 global filename
 r = filename;
-
-function set_image(img)
-global image
-image = img;
 
 function set_bw(img)
 global bw
@@ -315,29 +323,29 @@ function openfile_Callback(hObject, eventdata, handles)
 % hObject    handle to filename (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[img_file] = uigetfile('*.*','MultiSelect','on');
+set_img_file(uigetfile('*.*','MultiSelect','on'));
 
-%try
+try
     clear_vars;
-    img = {};
-    for i = 1 : length(img_file)
-        fprintf(string(img_file(i)));
+    images = {};
+    files = get_img_file;
+    for i = 1 : length(files)
+        fprintf(string(files(i)));
         fprintf('\n');
-        img = [img, imread(string(img_file(i)))]; 
+        images = [images, imread(string(files(i)))]; 
     end
-    disp(img);
-    disp(img(1));
+    set_image(images);
     axes(handles.axes1);
-    imshow(string(img_file(i)));
+    imshow(string(files(i)));
     set_mode(2);
     set(handles.currstep, 'String', 'Proceed with step 2.');
     fprintf('Opened image files \n');
     fprintf('Progressed to step 2. \n');
     fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
-%catch
-%    warning('File not found.');
-%    set_mode(1);
-%end
+catch
+    warning('File not found.');
+    set_mode(1);
+end
 
 %----------------------------------DRAWING CALLBACKS-----------------------------
 

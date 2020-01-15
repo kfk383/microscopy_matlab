@@ -53,6 +53,9 @@ function r = get_image
 global image
 r = image;
 
+function set_img_file
+
+
 function set_filename(val)
 global filename
 filename = val;
@@ -315,35 +318,29 @@ function openfile_Callback(hObject, eventdata, handles)
 % hObject    handle to filename (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+[img_file] = uigetfile('*.*','MultiSelect','on');
 
-% Hints: get(hObject,'String') returns contents of filename as text
-%        str2double(get(hObject,'String')) returns contents of filename as a double
-
-img_file = uigetfile('*.*','MultiSelect','on');
-try
+%try
     clear_vars;
-    for i = 1 : length(img_file);
-       img = [img imread(img_file[i])]; 
+    img = {};
+    for i = 1 : length(img_file)
+        fprintf(string(img_file(i)));
+        fprintf('\n');
+        img = [img, imread(string(img_file(i)))]; 
     end
-% str = get(hObject,'String');
-% set_filename(str);
-% try
-%     clear_vars;
-%     img = imread(str);
-%     axes(handles.axes1);
-%     imshow(img);
-%     set_image(img);
-%     set_mode(2);
-%     set(handles.currstep, 'String', 'Proceed with step 2.');
-%     fprintf('Opened image file ');
-%     fprintf(str);
-%     fprintf('\n');
-%     fprintf('Progressed to step 2. \n')
-%     fprintf(' Enter the scale, then drag draw a line along the scale bar, and a rectangle on the scale box in the image. \n')
-% catch
-%     warning('File not found. Please enter a valid file name.')
-%     set_mode(1);
-% end
+    disp(img);
+    disp(img(1));
+    axes(handles.axes1);
+    imshow(string(img_file(i)));
+    set_mode(2);
+    set(handles.currstep, 'String', 'Proceed with step 2.');
+    fprintf('Opened image files \n');
+    fprintf('Progressed to step 2. \n');
+    fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
+%catch
+%    warning('File not found.');
+%    set_mode(1);
+%end
 
 %----------------------------------DRAWING CALLBACKS-----------------------------
 
