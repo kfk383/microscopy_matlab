@@ -46,15 +46,32 @@ end
 %----------------------------------GLOBAL SET/GET----------------------------
 
 function clear_vars
-global objects scale_box scale_line scale position filename bw img_file
-clear objects scale_box scale_line scale position filename bw img_file;
+global objects scale_box scale_line scale position filename bw img_file index
+clear objects scale_box scale_line scale position filename bw img_file index;
+
+function set_image(val)
+global image
+image = val;
 
 function r = get_image
 global image
 r = image;
 
-function set_img_file
+function set_index(val) 
+global index
+index = val;
 
+function r = get_index
+global index
+r = index;
+
+function set_img_file(val)
+global img_file
+img_file = val;
+
+function get_img_file
+global img_file
+r = img_file;
 
 function set_filename(val)
 global filename
@@ -63,10 +80,6 @@ filename = val;
 function r = get_filename 
 global filename
 r = filename;
-
-function set_image(img)
-global image
-image = img;
 
 function set_bw(img)
 global bw
@@ -78,12 +91,12 @@ r = bw;
 
 function add_object(obj)
 global objects
-objects = [objects, obj];
+objects(get_index) = [objects(get_index), obj];
 
 function undo_object
 global objects
-if not(isempty(objects))
-    objects(end) = [];
+if not(isempty(objects(get_index)))
+    objects(get_index, end) = [];
 end
 
 function set_scale_box(val)
@@ -152,11 +165,12 @@ end
 % this mode.
 function mode3(handles)
 set(handles.currstep, 'String', 'Proceed with step 3.');
-rgb = rgb2gray(get_image);
+images = get_image;
+rgb = rgb2gray(images(get_index));
 I = medfilt2(rgb);
 BW = imbinarize(I,'adaptive','ForegroundPolarity','dark','Sensitivity',0.3);
 BW2 = imcomplement(BW);
-set_bw(BW2);
+set_bw([get_bw, BW2]);
 axes(handles.axes1);
 imshow(BW2);
 
@@ -167,45 +181,50 @@ imshow(BW2);
 % file in the current directory. 
 function mode4(handles)
 set(handles.currstep, 'String', 'Proceed with step 4.');
-BW2 = get_bw;
-objects = get_objects;
-scale_box = get_scale_box;
-x = [scale_box(1) scale_box(3)];
-y = [scale_box(2) scale_box(4)];
-b = poly2mask(x,y,size(BW2,1), size(BW2,2));
-BW2 = BW2-b;
-for i=1:size(objects)
-    try
-        bin0 = createMask(objects(i),BW2);
-        BW2=BW2-bin0;
-    catch
+objects_arr = get_objects;
+for i = 1 : length(objects_arr)
+    bw = get_bw;
+    BW2 = bw(i);
+    objects = objects_arr(i);
+    scale_box = get_scale_box;
+    x = [scale_box(1) scale_box(3)];
+    y = [scale_box(2) scale_box(4)];
+    b = poly2mask(x,y,size(BW2,1), size(BW2,2));
+    BW2 = BW2-b;
+    for i=1:size(objects)
+        try
+            bin0 = createMask(objects(i),BW2);
+            BW2=BW2-bin0;
+        catch
+        end
     end
-end
-set_bw(BW2);
+    set_bw(BW2);
 
-cc = bwconncomp(get_bw);
-L = bwlabel(get_bw);
-NL = cc.NumObjects;
-for i=1:NL
-    Obj = (L==i);
-    Area(i) = regionprops(Obj,'Area') ;
+    cc = bwconncomp(BW2);
+    L = bwlabel(BW2);
+    NL = cc.NumObjects;
+    for i=1:NL
+        Obj = (L==i);
+        Area(i) = regionprops(Obj,'Area') ;
+    end
+    Area_um = struct2array(Area);
+    position = get_position;
+    distx = (position(1,1) - position(2,1))^2;
+    disty = (position(1,2) - position(2,2))^2;
+    distance = (distx + disty)^(1/2);
+    pixel_to_um = distance / get_scale;
+    files = get_img_file;
+    fname = files(get_index);
+    pd_index = strfind(fname, '.');
+    r = extractAfter(fname,pd_index);
+    fname = replace(fname,r,'csv');
+    fid = fopen(fname,'w');
+    for i=1:max(size(Area_um))
+        conv_area = Area_um(i) / (pixel_to_um)^2;
+        Area_um(i) = conv_area;
+    end
+    fprintf(fid,'%f\n', Area_um);
 end
-Area_um = struct2array(Area);
-position = get_position;
-distx = (position(1,1) - position(2,1))^2;
-disty = (position(1,2) - position(2,2))^2;
-distance = (distx + disty)^(1/2);
-pixel_to_um = distance / get_scale;
-fname = get_filename;
-pd_index = strfind(fname, '.');
-r = extractAfter(fname,pd_index);
-fname = replace(fname,r,'csv');
-fid = fopen(fname,'w');
-for i=1:max(size(Area_um))
-    conv_area = Area_um(i) / (pixel_to_um)^2;
-    Area_um(i) = conv_area;
-end
-fprintf(fid,'%f\n', Area_um);
 
 %----------------------------------OPENING/PRINT FUNCTIONS-----------------------
 
@@ -252,18 +271,20 @@ if (isnan(m))
     fprintf(' Please enter the name of the file you want to analyze, including the file extension. \n')
 elseif (m == 3)
     set_mode(2)
-    mode2(handles);
+    set_index(1);
     set(handles.currstep, 'String', 'Proceed with step 2.');
     fprintf('Went back to step 2. \n')
     fprintf(' Drag draw a line along the scale bar in the image. \n')
+    mode2(handles);
 elseif (m == 4)
     set_mode(3)
-    mode3(handles);
     set(handles.currstep, 'String', 'Proceed with step 3.');
     fprintf('Went back to step 3. \n')
     fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
+    mode3(handles);
 else
     set_mode(1)
+    set_index(1);
     set(handles.currstep, 'String', 'Proceed with step 1.');
     fprintf('Went back to step 1. \n')
     fprintf(' Please enter the name of the file you want to analyze, including the file extension. \n')
@@ -282,22 +303,33 @@ if (isnan(m))
     fprintf(' Please enter the name of the file you want to analyze, including the file extension. \n')
 elseif (m == 1)
     set_mode(2)
-    mode2(handles);
     set(handles.currstep, 'String', 'Proceed with step 2.');
     fprintf('Progressed to step 2. \n')
     fprintf(' Enter the scale, then drag draw a line along the scale bar, and a rectangle on the scale box in the image. \n')
+    mode2(handles);
 elseif (m == 2)
-    set_mode(3)
-    mode3(handles);
-    set(handles.currstep, 'String', 'Proceed with step 3.');
-    fprintf('Progressed to step 3. \n')
-    fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
+    if (get_index == length(get_image))
+        set_mode(3)
+        set_index(1);
+        set(handles.currstep, 'String', 'Proceed with step 3.');
+        fprintf('Progressed to step 3. \n')
+        fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
+        mode3(handles);
+    else 
+        set_index(get_index + 1)
+        mode2(handles);
+    end
 else
-    set_mode(4)
-    mode4(handles);
-    set(handles.currstep, 'String', 'Proceed with step 4.');
-    fprintf('Progressed to step 4. \n')
-    fprintf(' Image analysis complete. A CSV with obtained areas has been saved in your directory. The generated figure must be manually saved. \n')
+    if (get_index == length(get_image))
+        set_mode(4)
+        set(handles.currstep, 'String', 'Proceed with step 4.');
+        fprintf('Progressed to step 4. \n')
+        fprintf(' Image analysis complete. A CSV with obtained areas has been saved in your directory. The generated figure must be manually saved. \n')
+        mode4(handles);
+    else 
+        set_index(get_index + 1)
+        mode3(handles);
+    end
 end
 
 % --- Executes on button press in undo.
@@ -306,7 +338,8 @@ function undo_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 if (get_mode == 3)
-    obs = get_objects;
+    obj = get_objects;
+    obs = obj(get_index);
     if not(isempty(obs))
         del = obs(end);
         delete(del);
@@ -318,29 +351,30 @@ function openfile_Callback(hObject, eventdata, handles)
 % hObject    handle to filename (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-[img_file] = uigetfile('*.*','MultiSelect','on');
+set_img_file(uigetfile('*.*','MultiSelect','on'));
 
-%try
+try
     clear_vars;
-    img = {};
-    for i = 1 : length(img_file)
-        fprintf(string(img_file(i)));
+    images = {};
+    files = get_img_file;
+    for i = 1 : length(files)
+        fprintf(string(files(i)));
         fprintf('\n');
-        img = [img, imread(string(img_file(i)))]; 
+        images = [images, imread(string(files(i)))]; 
     end
-    disp(img);
-    disp(img(1));
+    set_index(1);
+    set_image(images);
     axes(handles.axes1);
-    imshow(string(img_file(i)));
+    imshow(string(files(get_index)));
     set_mode(2);
     set(handles.currstep, 'String', 'Proceed with step 2.');
     fprintf('Opened image files \n');
     fprintf('Progressed to step 2. \n');
     fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
-%catch
-%    warning('File not found.');
-%    set_mode(1);
-%end
+catch
+    warning('File not found.');
+    set_mode(1);
+end
 
 %----------------------------------DRAWING CALLBACKS-----------------------------
 
