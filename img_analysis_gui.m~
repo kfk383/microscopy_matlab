@@ -1,30 +1,4 @@
 function varargout = img_analyis_gui(varargin)
-% IMG_ANALYIS_GUI MATLAB code for img_analyis_gui.fig
-%      IMG_ANALYIS_GUI, by itself, creates a new IMG_ANALYIS_GUI or raises the existing
-%      singleton*.
-%
-%      H = IMG_ANALYIS_GUI returns the handle to a new IMG_ANALYIS_GUI or the handle to
-%      the existing singleton*.
-%
-%      IMG_ANALYIS_GUI('CALLBACK',hObject,eventData,handles,...) calls the local
-%      function named CALLBACK in IMG_ANALYIS_GUI.M with the given input arguments.
-%
-%      IMG_ANALYIS_GUI('Property','Value',...) creates a new IMG_ANALYIS_GUI or raises the
-%      existing singleton*.  Starting from the left, property value pairs are
-%      applied to the GUI before img_analyis_gui_OpeningFcn gets called.  An
-%      unrecognized property name or invalid value makes property application
-%      stop.  All inputs are passed to img_analyis_gui_OpeningFcn via varargin.
-%
-%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
-%      instance to run (singleton)".
-%
-% See also: GUIDE, GUIDATA, GUIHANDLES
-
-% Edit the above text to modify the response to help img_analyis_gui
-
-% Last Modified by GUIDE v2.5 09-Apr-2019 11:06:07
-
-% Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
@@ -41,21 +15,12 @@ if nargout
 else
     gui_mainfcn(gui_State, varargin{:});
 end
-% End initialization code - DO NOT EDIT
 
 %----------------------------------GLOBAL SET/GET----------------------------
 
 function clear_vars
-global objects scale_box scale_line scale position filename bw img_file index
-clear objects scale_box scale_line scale position filename bw img_file index;
-
-function set_image(val)
-global image
-image = val;
-
-function r = get_image
-global image
-r = image;
+global objects scale_box scale_line scale position filename bw index
+clear objects scale_box scale_line scale position filename bw index;
 
 function set_index(val) 
 global index
@@ -69,7 +34,7 @@ function set_img_file(val)
 global img_file
 img_file = val;
 
-function get_img_file
+function r = get_img_file
 global img_file
 r = img_file;
 
@@ -91,17 +56,24 @@ r = bw;
 
 function add_object(obj)
 global objects
-objects(get_index) = [objects(get_index), obj];
+objects = [objects, obj];
 
 function undo_object
 global objects
-if not(isempty(objects(get_index)))
-    objects(get_index, end) = [];
+if not(isempty(objects))
+    objects(end) = [];
 end
 
-function set_scale_box(val)
+function clear_objects()
+global objects
+objects = {};
+
+function set_scale_box(val, size1, size2)
 global scale_box
-scale_box = val;
+x = [val(1) val(3)];
+y = [val(2) val(4)];
+b = poly2mask(x,y,size1, size2);
+scale_box = b;
 
 function r = get_scale_box
 global scale_box;
@@ -150,11 +122,13 @@ r = position;
 function mode2(handles)
 set(handles.currstep, 'String', 'Proceed with step 2.');
 axes(handles.axes1);
-imshow(get_image);
+images = get_img_file;
+image = imread(string(images(get_index)));
+[leng, columns, numberOfColorChannels] = size(image);
 if (not(isempty(get_scale)))
     line = drawline();
     box = drawrectangle();
-    set_scale_box(box.Position());
+    set_scale_box(box.Position(),length(image), length(image(1)));
     set_scale_line(line);
     set_position(line.Position())
 end
@@ -165,12 +139,12 @@ end
 % this mode.
 function mode3(handles)
 set(handles.currstep, 'String', 'Proceed with step 3.');
-images = get_image;
-rgb = rgb2gray(images(get_index));
+file = get_img_file;
+file = file(get_index);
+rgb = rgb2gray(imread(string(file)));
 I = medfilt2(rgb);
 BW = imbinarize(I,'adaptive','ForegroundPolarity','dark','Sensitivity',0.3);
 BW2 = imcomplement(BW);
-set_bw([get_bw, BW2]);
 axes(handles.axes1);
 imshow(BW2);
 
@@ -181,88 +155,64 @@ imshow(BW2);
 % file in the current directory. 
 function mode4(handles)
 set(handles.currstep, 'String', 'Proceed with step 4.');
-objects_arr = get_objects;
-for i = 1 : length(objects_arr)
-    bw = get_bw;
-    BW2 = bw(i);
-    objects = objects_arr(i);
-    scale_box = get_scale_box;
-    x = [scale_box(1) scale_box(3)];
-    y = [scale_box(2) scale_box(4)];
-    b = poly2mask(x,y,size(BW2,1), size(BW2,2));
-    BW2 = BW2-b;
-    for i=1:size(objects)
-        try
-            bin0 = createMask(objects(i),BW2);
-            BW2=BW2-bin0;
-        catch
-        end
+objects = get_objects;
+file = get_img_file;
+file = file(get_index);
+rgb = rgb2gray(imread(string(file)));
+I = medfilt2(rgb);
+BW = imbinarize(I,'adaptive','ForegroundPolarity','dark','Sensitivity',0.3);
+BW2 = imcomplement(BW);
+b = get_scale_box;
+BW2 = BW2-b;
+for i=1:size(objects)
+    try
+        bin0 = createMask(objects(i),BW2);
+        BW2=BW2-bin0;
+    catch
     end
-    set_bw(BW2);
-
-    cc = bwconncomp(BW2);
-    L = bwlabel(BW2);
-    NL = cc.NumObjects;
-    for i=1:NL
-        Obj = (L==i);
-        Area(i) = regionprops(Obj,'Area') ;
-    end
-    Area_um = struct2array(Area);
-    position = get_position;
-    distx = (position(1,1) - position(2,1))^2;
-    disty = (position(1,2) - position(2,2))^2;
-    distance = (distx + disty)^(1/2);
-    pixel_to_um = distance / get_scale;
-    files = get_img_file;
-    fname = files(get_index);
-    pd_index = strfind(fname, '.');
-    r = extractAfter(fname,pd_index);
-    fname = replace(fname,r,'csv');
-    fid = fopen(fname,'w');
-    for i=1:max(size(Area_um))
-        conv_area = Area_um(i) / (pixel_to_um)^2;
-        Area_um(i) = conv_area;
-    end
-    fprintf(fid,'%f\n', Area_um);
 end
+set_bw(BW2);
+
+cc = bwconncomp(BW2);
+L = bwlabel(BW2);
+NL = cc.NumObjects;
+for j=1:NL
+    Obj = (L==j);
+    Area(j) = regionprops(Obj,'Area') ;
+end
+Area_um = struct2array(Area);
+position = get_position;
+distx = (position(1,1) - position(2,1))^2;
+disty = (position(1,2) - position(2,2))^2;
+distance = (distx + disty)^(1/2);
+pixel_to_um = distance / get_scale;
+pd_index = strfind(string(file), '.');
+r = extractAfter(string(file),pd_index);
+fname = replace(string(file),r,'csv');
+fid = fopen(string(file),'w');
+for j=1:max(size(Area_um))
+    conv_area = Area_um(j) / (pixel_to_um)^2;
+    Area_um(j) = conv_area;
+end
+fprintf(fid,'%f\n', Area_um);
+clear_objects;
 
 %----------------------------------OPENING/PRINT FUNCTIONS-----------------------
 
 % --- Executes just before img_analyis_gui is made visible.
 function img_analyis_gui_OpeningFcn(hObject, eventdata, handles, varargin)
-% This function has no output args, see OutputFcn.
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-% varargin   command line arguments to img_analyis_gui (see VARARGIN)
-
-% Choose default command line output for img_analyis_gui
 handles.output = hObject;
-
-% Update handles structure
 guidata(hObject, handles);
-
-% UIWAIT makes img_analyis_gui wait for user response (see UIRESUME)
-% uiwait(handles.figure1);
 
 
 % --- Outputs from this function are returned to the command line.
 function varargout = img_analyis_gui_OutputFcn(hObject, eventdata, handles) 
-% varargout  cell array for returning output args (see VARARGOUT);
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Get default command line output from handles structure
 varargout{1} = handles.output;
 
 %----------------------------------BUTTON PRESS CALLBACKS-----------------------
 
 % --- Executes on button press in prevstep.
 function prevstep_Callback(hObject, eventdata, handles)
-% hObject    handle to prevstep (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 m = get_mode;
 if (isnan(m))
     set_mode(1)
@@ -278,6 +228,7 @@ elseif (m == 3)
     mode2(handles);
 elseif (m == 4)
     set_mode(3)
+    set_index(1);
     set(handles.currstep, 'String', 'Proceed with step 3.');
     fprintf('Went back to step 3. \n')
     fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
@@ -292,15 +243,12 @@ end
 
 % --- Executes on button press in nextstep.
 function nextstep_Callback(hObject, eventdata, handles)
-% hObject    handle to nextstep (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 m = get_mode;
 if (isnan(m))
     set_mode(1)
     set(handles.currstep, 'String', 'Proceed with step 1.');
     fprintf('Step 1. \n')
-    fprintf(' Please enter the name of the file you want to analyze, including the file extension. \n')
+    fprintf(' Please select the file(s) you want to analyze. \n')
 elseif (m == 1)
     set_mode(2)
     set(handles.currstep, 'String', 'Proceed with step 2.');
@@ -308,25 +256,21 @@ elseif (m == 1)
     fprintf(' Enter the scale, then drag draw a line along the scale bar, and a rectangle on the scale box in the image. \n')
     mode2(handles);
 elseif (m == 2)
-    if (get_index == length(get_image))
-        set_mode(3)
-        set_index(1);
-        set(handles.currstep, 'String', 'Proceed with step 3.');
-        fprintf('Progressed to step 3. \n')
-        fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
-        mode3(handles);
-    else 
-        set_index(get_index + 1)
-        mode2(handles);
-    end
+    set_mode(3)
+    set_index(1);
+    set(handles.currstep, 'String', 'Proceed with step 3.');
+    fprintf('Progressed to step 3. \n')
+    fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
+    mode3(handles);
 else
-    if (get_index == length(get_image))
+    if (get_index == length(get_img_file))
         set_mode(4)
         set(handles.currstep, 'String', 'Proceed with step 4.');
         fprintf('Progressed to step 4. \n')
-        fprintf(' Image analysis complete. A CSV with obtained areas has been saved in your directory. The generated figure must be manually saved. \n')
+        fprintf(' Image analysis complete. CSVs with obtained areas have been saved in your directory. The generated figure must be manually saved. \n')
         mode4(handles);
     else 
+        mode4(handles);
         set_index(get_index + 1)
         mode3(handles);
     end
@@ -334,9 +278,6 @@ end
 
 % --- Executes on button press in undo.
 function undo_Callback(hObject, eventdata, handles)
-% hObject    handle to undo (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 if (get_mode == 3)
     obj = get_objects;
     obs = obj(get_index);
@@ -348,41 +289,23 @@ if (get_mode == 3)
 end
 
 function openfile_Callback(hObject, eventdata, handles)
-% hObject    handle to filename (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-set_img_file(uigetfile('*.*','MultiSelect','on'));
-
-try
-    clear_vars;
-    images = {};
-    files = get_img_file;
-    for i = 1 : length(files)
-        fprintf(string(files(i)));
-        fprintf('\n');
-        images = [images, imread(string(files(i)))]; 
-    end
-    set_index(1);
-    set_image(images);
-    axes(handles.axes1);
-    imshow(string(files(get_index)));
-    set_mode(2);
-    set(handles.currstep, 'String', 'Proceed with step 2.');
-    fprintf('Opened image files \n');
-    fprintf('Progressed to step 2. \n');
-    fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
-catch
-    warning('File not found.');
-    set_mode(1);
-end
+set_img_file([{}, uigetfile('*.*','MultiSelect','on')]);
+file = get_img_file;
+file = string(file(get_index));
+fprintf(file)
+set_index(1);
+axes(handles.axes1);
+imshow(file);
+set_mode(2);
+set(handles.currstep, 'String', 'Proceed with step 2.');
+fprintf('Opened image files \n');
+fprintf('Progressed to step 2. \n');
+fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
 
 %----------------------------------DRAWING CALLBACKS-----------------------------
 
 % --- Executes on button press in drawrect.
 function drawrect_Callback(hObject, eventdata, handles)
-% hObject    handle to drawrect (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 if (get_mode == 3)
     h = drawrectangle();
     add_object(h);
@@ -390,9 +313,6 @@ end
 
 % --- Executes on button press in freedraw.
 function freedraw_Callback(hObject, eventdata, handles)
-% hObject    handle to freedraw (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 if (get_mode == 3)
     h = drawfreehand();
     add_object(h);
@@ -401,12 +321,6 @@ end
 %----------------------------------TEXT BOX CALLBACKS-----------------------------
 
 function scale_bar_Callback(hObject, eventdata, handles)
-% hObject    handle to scale_bar (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of scale_bar as text
-%        str2double(get(hObject,'String')) returns contents of scale_bar as a double
 str = get(hObject,'String');
 set_scale(str2double(str));
 fprintf('Scale set to: ');
@@ -421,12 +335,6 @@ end
 
 % --- Executes during object creation, after setting all properties.
 function scale_bar_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to scale_bar (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
