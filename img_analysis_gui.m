@@ -22,6 +22,10 @@ function clear_vars
 global objects scale_box scale_line scale position filename bw files index
 clear objects scale_box scale_line scale position filename bw files index;
 
+function clear_next_img
+global objects scale_box scale_line scale position filename bw
+clear objects scale_box scale_line scale position filename bw;
+
 function set_files(val)
 global files
 files = val;
@@ -217,21 +221,18 @@ if (isnan(m))
     fprintf(' Please enter the name of the file you want to analyze, including the file extension. \n')
 elseif (m == 3)
     set_mode(2)
-    set_index(1);
     set(handles.currstep, 'String', 'Proceed with step 2.');
     fprintf('Went back to step 2. \n')
     fprintf(' Drag draw a line along the scale bar in the image. \n')
     mode2(handles);
 elseif (m == 4)
     set_mode(3)
-    set_index(1);
     set(handles.currstep, 'String', 'Proceed with step 3.');
     fprintf('Went back to step 3. \n')
     fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
     mode3(handles);
 else
     set_mode(1)
-    set_index(1);
     set(handles.currstep, 'String', 'Proceed with step 1.');
     fprintf('Went back to step 1. \n')
     fprintf(' Please enter the name of the file you want to analyze, including the file extension. \n')
@@ -257,12 +258,27 @@ elseif (m == 2)
     fprintf('Progressed to step 3. \n')
     fprintf(' Use the drawing tools to outline portions you wish to exclude. \n')
     mode3(handles);
-else
+elseif (m == 3) 
     set_mode(4)
     set(handles.currstep, 'String', 'Proceed with step 4.');
     fprintf('Progressed to step 4. \n')
     fprintf(' Image analysis complete. CSVs with obtained areas have been saved in your directory. The generated figure must be manually saved. \n')
     mode4(handles);
+elseif (get_index < length(get_files))
+    set_index(get_index + 1)
+    set_mode(1)
+    clear_next_img;
+    file = get_files;
+    file = string(file(get_index));
+    set_filename(file);
+    set_image(imread(get_filename));
+    axes(handles.axes1);
+    imshow(get_image);
+    set_mode(2);
+    set(handles.currstep, 'String', 'Proceed with step 2.');
+    fprintf('Opened the next image file \n')
+    fprintf('Progressed to step 2 on this image. \n')
+    fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
 end
 
 % --- Executes on button press in undo.
@@ -283,7 +299,7 @@ file = get_files;
 set_index(1);
 file = string(file(get_index));
 set_filename(file);
-set_image(imread(file));
+set_image(imread(get_filename));
 axes(handles.axes1);
 imshow(get_image);
 set_mode(2);
