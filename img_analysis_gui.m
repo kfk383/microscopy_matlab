@@ -308,6 +308,9 @@ fprintf('Opened image files \n');
 fprintf('Progressed to step 2. \n');
 fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
 
+function helpbutton_Callback(~, ~, handles)
+help_screen
+
 %----------------------------------DRAWING CALLBACKS-----------------------------
 
 % --- Executes on button press in drawrect.
