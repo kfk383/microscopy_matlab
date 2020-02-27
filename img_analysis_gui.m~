@@ -120,34 +120,6 @@ function r = get_position
 global position
 r = position;
 
-function update_summary(handles)
-object = get_objects;
-if (len(object) > 0)
-    BW2 = get_bw;
-    shape = object(end);
-    bin0 = imcomplement(createMask(shape,BW2));
-    BW2 = BW2 - bin0;
-    cc = bwconncomp(get_bw);
-    L = bwlabel(get_bw);
-    NL = cc.NumObjects;
-    for i=1:NL
-        Obj = (L==i);
-        Area(i) = regionprops(Obj,'Area') ;
-    end
-    Area_um = struct2array(Area);
-    position = get_position;
-    distx = (position(1,1) - position(2,1))^2;
-    disty = (position(1,2) - position(2,2))^2;
-    distance = (distx + disty)^(1/2);
-    pixel_to_um = distance / get_scale;
-    
-    for i=1:max(size(Area_um))
-        conv_area = Area_um(i) / (pixel_to_um)^2;
-        Area_um(i) = conv_area;
-    end
-    set(handles.summary, 'data', Area_um);
-end
-
 % These are the guts of mode 2. It prompts the users to drag draw a line
 % and a rectangle, after inputting the scale. These are stored in global 
 % variables, and the position of the line is saved for area conversions
@@ -310,7 +282,7 @@ elseif (get_index < length(get_files))
 end
 
 % --- Executes on button press in undo.
-function undo_Callback(~, ~, handles)
+function undo_Callback(~, ~, ~)
 if (get_mode == 3)
     obj = get_objects;
     obs = obj(get_index);
@@ -319,7 +291,6 @@ if (get_mode == 3)
         delete(del);
     end
     undo_object();
-    update_summary(handles);
 end
 
 function openfile_Callback(~, ~, handles)
@@ -337,25 +308,31 @@ fprintf('Opened image files \n');
 fprintf('Progressed to step 2. \n');
 fprintf(' Enter the scale, then draw a line along the scale bar. Then, draw a rectangle over the scale box in the image. \n')
 
-function helpbutton_Callback(~, ~, ~)
+function helpbutton_Callback(~, ~, handles)
 help_screen
 
 %----------------------------------DRAWING CALLBACKS-----------------------------
 
 % --- Executes on button press in drawrect.
-function drawrect_Callback(~, ~, handles)
+function drawrect_Callback(~, ~, ~)
 if (get_mode == 3)
     h = drawrectangle();
     add_object(h);
-    update_summary(handles);
+    object = get_objects;
+    
+    BW2 = get_bw;
+    shape = object(end);
+    bin0 = imcomplement(createMask(shape,BW2));
+    BW2 = BW2 - bin0;
+    
+    
 end
 
 % --- Executes on button press in freedraw.
-function freedraw_Callback(~, ~, handles)
+function freedraw_Callback(~, ~, ~)
 if (get_mode == 3)
     h = drawfreehand();
     add_object(h);
-    update_summary(handles)
 end
 
 %----------------------------------TEXT BOX CALLBACKS-----------------------------
