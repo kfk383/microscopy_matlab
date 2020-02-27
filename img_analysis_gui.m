@@ -120,9 +120,13 @@ function r = get_position
 global position
 r = position;
 
+% This is used to update the table element in the GUI. This will be called
+% on demand in the program to display a size distribution summary of the 
+% objects within the most recently free drawn shape in step 3 of the
+% program. 
 function update_summary(handles)
 object = get_objects;
-if (len(object) > 0)
+if (size(object) > 0)
     BW2 = get_bw;
     shape = object(end);
     bin0 = imcomplement(createMask(shape,BW2));
@@ -145,7 +149,7 @@ if (len(object) > 0)
         conv_area = Area_um(i) / (pixel_to_um)^2;
         Area_um(i) = conv_area;
     end
-    set(handles.summary, 'data', Area_um);
+    set(handles.summary, 'data', transpose(Area_um));
 end
 
 % These are the guts of mode 2. It prompts the users to drag draw a line
